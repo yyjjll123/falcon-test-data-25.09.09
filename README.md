@@ -4,8 +4,8 @@
 首先需要创建Falcon-project文件夹，然后下载相关文件到根目录的Falcon-project文件夹里：
 
 需要下载的文件包括：
-从https://github.com/huggingface/transformers/blob/main/src/transformers/models/falcon/下载falcon文件,
-从https://github.com/tiiuae/onebitllms下载整个文件
+从 https://github.com/huggingface/transformers/blob/main/src/transformers/models/falcon/ 下载falcon文件,
+从 https://github.com/tiiuae/onebitllms 下载整个文件
 
 在terminal输入以下载模型Falcon-E-1B-Base和Falcon-E-3B-Base：
 ```sh
