@@ -19,10 +19,10 @@ except LookupError:
 
 
 # --- Configuration ---
-BASE_MODEL_DIR = "/root/lanyun-tmp/prepared_models"
-RESULTS_DIR = "/root/lanyun-tmp/falcon_eval_results"
+BASE_MODEL_DIR = "/root/lanyun-tmp/Falcon/prepared_models"
+RESULTS_DIR = "/root/lanyun-tmp/Falcon/falcon_eval_results"
 DEVICE = "cuda:0"
-BATCH_SIZE = "8"
+BATCH_SIZE = "32"
 
 
 MODELS_TO_EVAL = [
@@ -33,13 +33,14 @@ MODELS_TO_EVAL = [
 ]
 
 TASKS = [
-    "ifeval",
-    "hendrycks_test-math",
-    "gpqa",  # Removed due to gated dataset access issues，需要登陆Hugging Face才能使用
-    "musr",  # Removed as it's not a valid task name，无效名字，不确定
-    "bbh",
-    "mmlu_pro",
+    "ifeval",                                # Instruction following
+    "hendrycks_test-formal_logic",           # 数学难题 (hendrycks_math 的一个有效替代)
+    "bbh",                                   # BigBench Hard
+    "mmlu",                                  # Multi-task language understanding
+    "bigbench_strategyqa_generate_until",    # 多步推理 (替换 multiple_choice 版本)
+    "truthfulqa_mc2"                         # GPQA 平替 (truthfulqa_mc 的一个有效替代)
 ]
+
 
 def run_evaluation():
     """
