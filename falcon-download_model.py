@@ -7,7 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
 # 3B模型的Hugging Face Hub ID
-#model_id = "tiiuae/Falcon-E-1B-Base"
+model_id = "tiiuae/Falcon-E-1B-Base"
 model_id = "tiiuae/Falcon-E-3B-Base"
 
 print(f"使用镜像: {os.environ.get('HF_ENDPOINT')}")
