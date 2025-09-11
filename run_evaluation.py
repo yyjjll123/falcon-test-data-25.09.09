@@ -5,6 +5,8 @@ os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 import subprocess
 import sys
 import nltk
+import json
+import csv
 
 # --- Download necessary NLTK data ---
 # The 'ifeval' task requires the 'punkt' tokenizer from NLTK.
@@ -15,6 +17,15 @@ try:
 except LookupError:
     print("Downloading NLTK 'punkt' tokenizer data...")
     nltk.download('punkt')
+    print("Download complete.")
+
+# The 'ifeval' task also requires 'punkt_tab'.
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+    print("NLTK 'punkt_tab' tokenizer is already downloaded.")
+except LookupError:
+    print("Downloading NLTK 'punkt_tab' tokenizer data...")
+    nltk.download('punkt_tab')
     print("Download complete.")
 
 
@@ -34,8 +45,8 @@ MODELS_TO_EVAL = [
 
 TASKS = [
     "ifeval",                                # Instruction following
-    "hendrycks_test-formal_logic",           # 数学难题 (hendrycks_math 的一个有效替代)
-    "bbh",                                   # BigBench Hard
+    "arc_challenge",                         # 科学推理问答 
+    "gsm8k",                                 # 小学数学应用题 
     "mmlu",                                  # Multi-task language understanding
     "bigbench_strategyqa_generate_until",    # 多步推理 (替换 multiple_choice 版本)
     "truthfulqa_mc2"                         # GPQA 平替 (truthfulqa_mc 的一个有效替代)
@@ -61,6 +72,11 @@ def run_evaluation():
             output_dir_for_model = os.path.join(RESULTS_DIR, model_name)
             os.makedirs(output_dir_for_model, exist_ok=True)
             output_path = os.path.join(output_dir_for_model, f"results_{task}.json")
+
+            # If the output file already exists, remove it to prevent FileExistsError
+            if os.path.exists(output_path):
+                print(f"Output file {output_path} already exists. Removing it.")
+                os.remove(output_path)
 
             command = [
                 "lm_eval",
@@ -100,5 +116,75 @@ def run_evaluation():
     print("--- All evaluations complete! ---")
     print(f"Results are saved in: {RESULTS_DIR}")
 
+def summarize_results_to_csv(results_dir):
+    """
+    Walks through the results directory, finds all JSON results, and creates a CSV summary for each model.
+    """
+    print("\n--- Starting result summarization... ---")
+    for model_name in os.listdir(results_dir):
+        model_dir = os.path.join(results_dir, model_name)
+        if not os.path.isdir(model_dir):
+            continue
+
+        model_results = []
+        for result_file in os.listdir(model_dir):
+            if result_file.startswith("results_") and result_file.endswith(".json"):
+                task_name = result_file.replace("results_", "").replace(".json", "")
+                json_path = os.path.join(model_dir, result_file)
+
+                try:
+                    with open(json_path, 'r') as f:
+                        data = json.load(f)
+                except Exception as e:
+                    print(f"Could not read or parse {json_path}: {e}")
+                    continue
+                
+                results = data.get('results')
+                if not results:
+                    continue
+
+                for sub_task, metrics in results.items():
+                    processed_metrics = {}
+                    for metric_name, value in metrics.items():
+                        if "_stderr" not in metric_name and isinstance(value, (int, float)):
+                            processed_metrics[metric_name] = {'value': value, 'stderr': 'N/A'}
+                    
+                    for metric_name, value in metrics.items():
+                        if "_stderr" in metric_name:
+                            base_metric = metric_name.replace("_stderr", "")
+                            if base_metric in processed_metrics:
+                                processed_metrics[base_metric]['stderr'] = value
+
+                    for metric, values in processed_metrics.items():
+                        model_results.append({
+                            "task": task_name,
+                            "sub_task": sub_task,
+                            "metric": metric,
+                            "value": values['value'],
+                            "stderr": values['stderr']
+                        })
+        
+        if not model_results:
+            print(f"No results found to summarize for model: {model_name}")
+            continue
+
+        # Sort results for consistency
+        model_results.sort(key=lambda x: (x['task'], x['sub_task'], x['metric']))
+
+        summary_csv_path = os.path.join(model_dir, f"{model_name}_summary.csv")
+        try:
+            with open(summary_csv_path, 'w', newline='') as f_csv:
+                fieldnames = ["task", "sub_task", "metric", "value", "stderr"]
+                writer = csv.DictWriter(f_csv, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(model_results)
+            print(f"--- Summary for model {model_name} saved to {summary_csv_path} ---")
+        except Exception as e:
+            print(f"--- Error writing CSV for model {model_name}: {e} ---")
+
+    print("--- All summaries generated! ---")
+
+
 if __name__ == "__main__":
     run_evaluation()
+    summarize_results_to_csv(RESULTS_DIR)
